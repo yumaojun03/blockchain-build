@@ -16,6 +16,9 @@ func Test_NewBlock(t *testing.T) {
 		fmt.Printf("Prev. hash: %x\n", block.Header.PreviousHash)
 		fmt.Printf("Data: %s\n", block.Data)
 		fmt.Printf("Hash: %x\n", block.Header.DataHash)
+		fmt.Printf("Nonce: %d\n", block.Header.Nonce)
+		pow := proto.NewProofOfWork(block)
+		fmt.Printf("POW: %t\n", pow.Validate())
 		fmt.Println()
 	}
 }

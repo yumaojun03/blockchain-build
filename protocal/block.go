@@ -2,8 +2,7 @@ package protocal
 
 import (
 	"bytes"
-	"crypto/sha256"
-	"strconv"
+	"encoding/gob"
 	"time"
 )
 
@@ -25,6 +24,7 @@ type BlockHeader struct {
 	Timestamp    int64  `json:"timestamp,omitempty"`
 	PreviousHash []byte `json:"previous_hash,omitempty"`
 	DataHash     []byte `json:"data_hash,omitempty"`
+	Nonce        int    `json:"nonce,omitempty"`
 }
 
 // BlockData use to contain any data, eg transaction
@@ -37,24 +37,16 @@ type BlockMetadata struct {
 	Metadata [][]byte `json:"metadata,omitempty"`
 }
 
-// SetHash use to set block hash
-func (b *Block) SetHash() {
-	ts := []byte(strconv.FormatInt(b.Header.Timestamp, 10))
-	ph := b.Header.PreviousHash
-	data := bytes.Join(b.Data.Data, []byte{})
-
-	hashData := bytes.Join([][]byte{ph, data, ts}, []byte{})
-	hash := sha256.Sum256(hashData)
-	b.Header.DataHash = hash[:]
-}
-
 // NewBlock construct a block with no data and no metadata.
 func NewBlock(data string, previousHash []byte) *Block {
-	header := &BlockHeader{1, time.Now().Unix(), previousHash, []byte{}}
+	header := &BlockHeader{1, time.Now().Unix(), previousHash, []byte{}, 0}
 	dataB := &BlockData{[][]byte{[]byte(data)}}
 
 	block := &Block{header, dataB, nil}
-	block.SetHash()
+	pow := NewProofOfWork(block)
+	nonce, hash := pow.Run()
+	block.Header.Nonce = nonce
+	block.Header.DataHash = hash[:]
 
 	return block
 }
@@ -62,4 +54,26 @@ func NewBlock(data string, previousHash []byte) *Block {
 // NewGenesisBlock creates and returns genesis Block
 func NewGenesisBlock() *Block {
 	return NewBlock("Genesis Block", []byte{})
+}
+
+func SerializeBlock(b *Block) []byte {
+	var buf bytes.Buffer
+
+	encoder := gob.NewEncoder(&buf)
+	if err := encoder.Encode(b); err != nil {
+		panic(err)
+	}
+
+	return buf.Bytes()
+}
+
+func DeSerializeBlock(d []byte) *Block {
+	block := new(Block)
+
+	decoder := gob.NewDecoder(bytes.NewReader(d))
+	if err := decoder.Decode(block); err != nil {
+		panic(err)
+	}
+
+	return block
 }
